@@ -2,10 +2,6 @@
 
 Este repositório contém adaptações e experimentos realizados no simulador ONS para avaliação de cenários em Redes Ópticas Elásticas, com foco em recuperação progressiva de serviços após falhas de larga escala.
 
-## Objetivo
-
-Organizar topologias, configurações de simulação e resultados experimentais utilizados em estudos sobre recuperação de redes ópticas pós-desastre.
-
 ## Estrutura do Projeto
 
 - `src/`: código-fonte do simulador ONS.
@@ -19,7 +15,7 @@ Organizar topologias, configurações de simulação e resultados experimentais 
 
 ## Topologia Minnesota
 
-A topologia Minnesota foi convertida para o formato XML do ONS a partir de uma topologia em formato GML.
+A topologia Minnesota foi convertida para o formato XML do Net-MARS para utilização no ONS a partir de uma topologia em formato GML.
 
 A conversão inclui:
 
