@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?><eonsim version="0.2">
+    <ra module="EON_QFDDM"/>
+    <trace file="trace.tr"/>
+    
+     <!--rate in Mbps 1000Mbps = 1Gbps | 'cos' represents the number of service classes-->
+    <traffic calls="100000" cos="4" load="230" statisticStart="0">
+        <!--'cos' here starts with '0'-->
+        <calls cos="0" holding-time="1" rate="100000" weight="1"/>
+        <calls cos="1" holding-time="1" rate="150000" weight="1"/>
+        <calls cos="2" holding-time="1" rate="200000" weight="1"/>
+        <calls cos="3" holding-time="1" rate="250000" weight="1"/>
+    </traffic>
+    
+    <QoS>		
+        <service class="0" degradation-tolerance-max="0" degradation-tolerance-min="0" delay-tolerance-max="0" delay-tolerance-min="0" weight="2"/>
+	<service class="2" degradation-tolerance-max="0" degradation-tolerance-min="0" delay-tolerance-max="0.5" delay-tolerance-min="0.1" weight="4"/>
+	<service class="1" degradation-tolerance-max="0.5" degradation-tolerance-min="0.1" delay-tolerance-max="0" delay-tolerance-min="0" weight="4"/>
+	<service class="3" degradation-tolerance-max="0.5" degradation-tolerance-min="0.1" delay-tolerance-max="0.5" delay-tolerance-min="0.1" weight="8"/>
+    </QoS>
+    
+    <virtual-topology name="USA">
+    </virtual-topology>
+    
+    <physical-topology name="USA" wavelengths="16">
+        <nodes capacity="60" modulations="BPSK, QPSK, 8QAM, 16QAM, 32QAM, 64QAM, 128QAM, 256QAM">
+            <node id="0" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="1" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="2" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="3" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="4" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="5" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="6" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="7" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="8" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="9" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="10" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="11" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="12" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="13" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="14" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="15" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="16" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="17" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="18" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="19" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="20" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="21" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="22" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+            <node id="23" grooming-in-ports="32" grooming-out-ports="32" wlconverters="0" wlconversion-range="0"/>
+        </nodes>
+        <links guardband="2" slot-size="12500" slots="400">
+            <link id="0" source="0" destination="1" delay="4" bandwidth="192" weight="800"/>
+            <link id="1" source="0" destination="2" delay="4" bandwidth="192" weight="800"/>
+            <link id="2" source="1" destination="2" delay="5" bandwidth="192" weight="1000"/>
+            <link id="3" source="1" destination="3" delay="5" bandwidth="192" weight="1000"/>
+            <link id="4" source="2" destination="4" delay="5.5" bandwidth="192" weight="1100"/>
+            <link id="5" source="2" destination="9" delay="5.5" bandwidth="192" weight="1100"/>
+            <link id="6" source="2" destination="10" delay="4.75" bandwidth="192" weight="950"/>
+            <link id="7" source="3" destination="4" delay="4.75" bandwidth="192" weight="950"/>
+            <link id="8" source="3" destination="5" delay="1.25" bandwidth="192" weight="250"/>
+            <link id="9" source="3" destination="6" delay="1.25" bandwidth="192" weight="250"/>
+            <link id="10" source="4" destination="5" delay="4" bandwidth="192" weight="800"/>
+            <link id="11" source="4" destination="7" delay="4" bandwidth="192" weight="800"/>
+            <link id="12" source="4" destination="9" delay="5" bandwidth="192" weight="1000"/>
+            <link id="13" source="5" destination="6" delay="5" bandwidth="192" weight="1000"/>
+            <link id="14" source="6" destination="7" delay="4" bandwidth="192" weight="800"/>
+            <link id="15" source="7" destination="8" delay="4" bandwidth="192" weight="800"/>
+            <link id="16" source="8" destination="9" delay="4.25" bandwidth="192" weight="850"/>
+            <link id="17" source="8" destination="12" delay="4.25" bandwidth="192" weight="850"/>
+            <link id="18" source="8" destination="13" delay="6" bandwidth="192" weight="1200"/>
+            <link id="19" source="9" destination="10" delay="6" bandwidth="192" weight="1200"/>
+            <link id="20" source="9" destination="11" delay="5" bandwidth="192" weight="1000"/>
+            <link id="21" source="10" destination="11" delay="5" bandwidth="192" weight="1000"/>
+            <link id="22" source="10" destination="18" delay="6" bandwidth="192" weight="1200"/>
+            <link id="23" source="10" destination="17" delay="6" bandwidth="192" weight="1200"/>
+            <link id="24" source="11" destination="12" delay="9.5" bandwidth="192" weight="1900"/>
+            <link id="25" source="11" destination="16" delay="9.5" bandwidth="192" weight="1900"/>
+            <link id="26" source="12" destination="13" delay="5.75" bandwidth="192" weight="1150"/>
+            <link id="27" source="12" destination="15" delay="5.75" bandwidth="192" weight="1150"/>
+            <link id="28" source="13" destination="14" delay="5" bandwidth="192" weight="1000"/>
+            <link id="29" source="14" destination="15" delay="5" bandwidth="192" weight="1000"/>
+            <link id="30" source="14" destination="23" delay="4.5" bandwidth="192" weight="900"/>
+            <link id="31" source="15" destination="16" delay="4.5" bandwidth="192" weight="900"/>
+            <link id="32" source="15" destination="21" delay="5" bandwidth="192" weight="1000"/>
+            <link id="33" source="15" destination="22" delay="5" bandwidth="192" weight="1000"/>
+            <link id="34" source="16" destination="17" delay="7" bandwidth="192" weight="1400"/>
+            <link id="35" source="16" destination="20" delay="7" bandwidth="192" weight="1400"/>
+            <link id="36" source="16" destination="21" delay="5" bandwidth="192" weight="1000"/>
+            <link id="37" source="17" destination="19" delay="5" bandwidth="192" weight="1000"/>
+            <link id="38" source="18" destination="19" delay="4.75" bandwidth="192" weight="950"/>
+            <link id="39" source="19" destination="20" delay="4.75" bandwidth="192" weight="950"/>
+            <link id="40" source="20" destination="21" delay="4.25" bandwidth="192" weight="850"/>
+            <link id="41" source="21" destination="22" delay="4.25" bandwidth="192" weight="850"/>
+            <link id="42" source="22" destination="23" delay="4.5" bandwidth="192" weight="900"/>
+        </links>
+    </physical-topology>
+    
+    <disaster-event Events_Num="4">
+        <disaster-area numLinks="4" numNodes="1">  
+            <nodes>
+                <node id="5"/>                
+            </nodes>
+            <links>   
+                <link id="7"/>             
+                <link id="8"/>  
+                <link id="10"/> 
+                <link id="13"/>            
+            </links>
+        </disaster-area>
+        
+        <disaster-area numLinks="4" numNodes="1">  
+            <nodes>
+                <node id="11"/>                
+            </nodes>
+            <links>   
+                <link id="20"/>             
+                <link id="21"/>  
+                <link id="24"/> 
+                <link id="25"/>            
+            </links>
+        </disaster-area>
+        
+        <disaster-area numLinks="5" numNodes="1">  
+            <nodes>
+                <node id="15"/>                
+            </nodes>
+            <links>   
+                <link id="27"/>             
+                <link id="29"/>  
+                <link id="31"/> 
+                <link id="32"/>
+                <link id="33"/>            
+            </links>
+        </disaster-area>
+        
+        <disaster-area numLinks="2" numNodes="0">  
+            <nodes>      
+            </nodes>
+            <links>   
+                <link id="35"/>
+                <link id="36"/>            
+            </links>
+        </disaster-area>
+    </disaster-event>
+    
+</eonsim>
