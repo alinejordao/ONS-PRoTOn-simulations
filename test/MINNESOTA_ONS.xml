@@ -3,40 +3,49 @@
     
     <ra module="Arrigoni"/>
     <trace file="trace_minnesota.tr"/>
-    <traffic calls="5000" load="50" cos="1" statisticStart="0">
+<traffic calls="5000" load="50" cos="1" statisticStart="0">
     <calls holding-time="1" rate="100000" cos="0" weight="50"/>
     <calls holding-time="1" rate="150000" cos="0" weight="40"/>
     <calls holding-time="1" rate="200000" cos="0" weight="30"/>
     <calls holding-time="1" rate="250000" cos="0" weight="20"/>
     <calls holding-time="1" rate="300000" cos="0" weight="10"/>
-    <calls holding-time="1" rate="100000" cos="0" weight="1"/>
-    </traffic>
+</traffic>
 
-  <QoS>
-        <service class="0"
-                 degradation-tolerance-min="0"
-                 degradation-tolerance-max="0"
-                 delay-tolerance-min="0"
-                 delay-tolerance-max="0"
-                 weight="1"/>
-    </QoS>
-    <disaster-event Events_Num="5">
-    <disaster-area numNodes="0" numLinks="10">
-        <nodes/>
-        <links>
-            <!-- 10 links usados -->
-            <link id="0"/>
-            <link id="1"/>
-            <link id="2"/>
-            <link id="3"/>
-            <link id="4"/>
-            <link id="5"/>
-            <link id="6"/>
-            <link id="7"/>
-            <link id="8"/>
-            <link id="9"/>
-        </links>
-    </disaster-area>
+<QoS>
+    <service class="0"
+             degradation-tolerance-min="0"
+             degradation-tolerance-max="0"
+             delay-tolerance-min="0"
+             delay-tolerance-max="0"
+             weight="1"/>
+</QoS>
+    <!-- numero de areas com desastres reais -->
+    <disaster-event Events_Num="1">
+  <disaster-area numNodes="0" numLinks="20">
+    <nodes/>
+    <links>
+        <link id="40"/>
+        <link id="41"/>
+        <link id="42"/>
+        <link id="43"/>
+        <link id="44"/>
+        <link id="45"/>
+        <link id="46"/>
+        <link id="47"/>
+        <link id="48"/>
+        <link id="49"/>
+        <link id="50"/>
+        <link id="51"/>
+        <link id="52"/>
+        <link id="53"/>
+        <link id="54"/>
+        <link id="55"/>
+        <link id="56"/>
+        <link id="57"/>
+        <link id="58"/>
+        <link id="59"/>
+    </links>
+</disaster-area>
 </disaster-event>
     <virtual-topology name="MINNESOTA"/>
     <physical-topology name="MINNESOTA"

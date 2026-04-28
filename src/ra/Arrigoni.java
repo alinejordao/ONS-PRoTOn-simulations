@@ -106,26 +106,25 @@ public class Arrigoni implements RA {
      *  Depois enriquecer com “tomografia” (usando ocupação, etc.).
      */
     private WeightedGraph computeTomographicGraph(PhysicalTopology pt, DisasterArea area) {
-        int nodes = pt.getNumNodes();
-        WeightedGraph g = new WeightedGraph(nodes);
+    int nodes = pt.getNumNodes();
+    WeightedGraph g = new WeightedGraph(nodes);
 
-        for (int i = 0; i < nodes; i++) {
-            for (int j = 0; j < nodes; j++) {
-                if (pt.hasLink(i, j)) {
-                    EONLink link = (EONLink) pt.getLink(i, j);
+    for (int i = 0; i < nodes; i++) {
+        for (int j = 0; j < nodes; j++) {
+            if (pt.hasLink(i, j)) {
+                EONLink link = (EONLink) pt.getLink(i, j);
 
-                    if (link.isIsInterupted()) {
-                        // link quebrado: não deve ser usado
-                        g.addEdge(i, j, Integer.MAX_VALUE);
-                    } else {
-                        // por enquanto, peso = weight original
-                        g.addEdge(i, j, link.getWeight());
-                    }
+                // Link interrompido não entra no grafo pós-falha.
+                // Assim o KSP não tenta usar esse enlace.
+                if (!link.isIsInterupted()) {
+                    g.addEdge(i, j, link.getWeight());
                 }
             }
         }
-        return g;
     }
+
+    return g;
+}
 
     /* ========= 5. Seleção de fluxos ========= */
 
@@ -160,20 +159,30 @@ public class Arrigoni implements RA {
     }
 
    private void restoreCriticalFlows(WeightedGraph postGraph, List<Flow> criticalFlows) {
-    int K = 3;
+    int K = 10;
+
     for (Flow f : criticalFlows) {
+        System.out.println(" Tentando restaurar fluxo ID=" + f.getID()
+                + " src=" + f.getSource()
+                + " dst=" + f.getDestination()
+                + " bw=" + f.getBwReq());
+        
+        debugNodeDegree(postGraph, f.getSource(), f.getDestination());
+
         ArrayList<Integer>[] paths = YenKSP.kShortestPaths(
                 postGraph, f.getSource(), f.getDestination(), K);
 
         boolean recovered = tryRecovery(f, paths);
 
         if (!recovered) {
-            // não conseguiu restaurar → dropa
+            System.out.println("Falha ao restaurar fluxo ID=" + f.getID()
+                    + " -> dropFlow");
+
             cp.dropFlow(f);
             f.updateTransmittedBw();
+        } else {
+            System.out.println("Fluxo restaurado com sucesso ID=" + f.getID());
         }
-        // se recovered == true,
-        // rerouteFlow + restoreFlow já foram chamados dentro de tryRecovery
     }
 }
 
@@ -268,41 +277,82 @@ public class Arrigoni implements RA {
  * Tenta re-rotear e RESTAURAR um fluxo interrompido.
  * Usa rerouteFlow + restoreFlow.
  */
-    private boolean tryRecovery(Flow f, ArrayList<Integer>[] paths) {
-    if (paths == null) return false;
+private boolean tryRecovery(Flow f, ArrayList<Integer>[] paths) {
+    if (paths == null || paths.length == 0) {
+        System.out.println(" Nenhum caminho candidato para fluxo ID=" + f.getID());
+        return false;
+    }
 
     long id;
     LightPath[] lps = new LightPath[1];
 
     OUTER:
     for (ArrayList<Integer> path : paths) {
-        if (path == null || path.isEmpty()) continue;
+        System.out.println(" Caminho candidato para fluxo ID=" + f.getID() + ": " + path);
+
+        if (path == null || path.isEmpty()) {
+            continue;
+        }
 
         int[] nodes = convertIntegers(path);
-        if (nodes.length == 0) continue;
+        if (nodes.length == 0) {
+            continue;
+        }
 
         int[] links = new int[nodes.length - 1];
+
         for (int j = 0; j < nodes.length - 1; j++) {
             links[j] = cp.getPT().getLink(nodes[j], nodes[j + 1]).getID();
         }
 
+        System.out.print(" Links da rota para fluxo ID=" + f.getID() + ": ");
+        for (int linkId : links) {
+            System.out.print(linkId + " ");
+        }
+        System.out.println();
+
         double sizeRoute = 0;
+
         for (int linkId : links) {
             sizeRoute += cp.getPT().getLink(linkId).getWeight();
         }
 
         int modulation = Modulation.getBestModulation(sizeRoute);
+
+        if (modulation < 0) {
+        System.out.println(" Nenhuma modulação suporta oficialmente a rota do fluxo ID="
+            + f.getID()
+            + " rotaSize=" + sizeRoute
+            + ". Usando BPSK como fallback experimental.");
+
+         modulation = 0;
+        }
+
         f.setModulation(modulation);
 
-        int requiredSlots = Modulation.convertRateToSlot(
-                f.getBwReq(),
-                EONPhysicalTopology.getSlotSize(),
-                modulation
+       int requiredSlots = Modulation.convertRateToSlot(
+        f.getBwReq(),
+        EONPhysicalTopology.getSlotSize(),
+        modulation
         );
-        if (requiredSlots >= 100000) continue;
+
+        if (requiredSlots >= 100000) {
+            System.out.println(" Modulação inválida para fluxo ID=" + f.getID()
+                    + " rotaSize=" + sizeRoute
+                    + " requiredSlots=" + requiredSlots);
+            continue;
+        }
+
+        System.out.println(" Fluxo ID=" + f.getID()
+                + " rotaSize=" + sizeRoute
+                + " modulation=" + modulation
+                + " requiredSlots=" + requiredSlots);
 
         for (int linkId : links) {
             if (!((EONLink) cp.getPT().getLink(linkId)).hasSlotsAvaiable(requiredSlots)) {
+                System.out.println(" Sem slots no link ID=" + linkId
+                        + " para fluxo ID=" + f.getID()
+                        + " requiredSlots=" + requiredSlots);
                 continue OUTER;
             }
         }
@@ -310,7 +360,13 @@ public class Arrigoni implements RA {
         int[] firstSlot = ((EONLink) cp.getPT().getLink(links[0]))
                 .getSlotsAvailableToArray(requiredSlots);
 
+        System.out.println(" Quantidade de slots candidatos no primeiro link: "
+                + firstSlot.length);
+
         for (int slot : firstSlot) {
+            System.out.println(" Tentando criar lightpath no slot inicial=" + slot
+                    + " slotFinal=" + (slot + requiredSlots - 1));
+
             EONLightPath lp = cp.createCandidateEONLightPath(
                     f.getSource(),
                     f.getDestination(),
@@ -323,14 +379,23 @@ public class Arrigoni implements RA {
             if ((id = cp.getVT().createLightpath(lp)) >= 0) {
                 lps[0] = cp.getVT().getLightpath(id);
 
-                // Aqui usamos rerouteFlow, pois o fluxo já existia
-                if (cp.rerouteFlow(f.getID(), lps)) {
-                    // e marcamos explicitamente como restaurado
-                    cp.restoreFlow(f);
-                    return true;
-                } else {
-                    cp.getVT().deallocatedLightpath(id);
-                }
+                System.out.println(" Lightpath criado ID=" + id
+                        + " para fluxo ID=" + f.getID());
+
+                if (cp.acceptFlow(f.getID(), lps)) {
+    System.out.println(" Flow aceito novamente ID=" + f.getID());
+
+    cp.restoreFlow(f);
+    return true;
+} else {
+    System.out.println(" AcceptFlow recusou fluxo ID=" + f.getID()
+            + ". Desalocando lightpath ID=" + id);
+
+    cp.getVT().deallocatedLightpath(id);
+}
+            } else {
+                System.out.println("Falha ao criar lightpath para fluxo ID=" + f.getID()
+                        + " no slot inicial=" + slot);
             }
         }
     }
@@ -347,4 +412,22 @@ public class Arrigoni implements RA {
         }
         return ret;
     }
+    private void debugNodeDegree(WeightedGraph g, int src, int dst) {
+    int srcDegree = 0;
+    int dstDegree = 0;
+
+    for (int i = 0; i < g.size(); i++) {
+        if (g.isEdge(src, i)) {
+            srcDegree++;
+        }
+        if (g.isEdge(dst, i)) {
+            dstDegree++;
+        }
+    }
+
+    System.out.println(" Grau no grafo pos-falha: src=" + src
+            + " degree=" + srcDegree
+            + " | dst=" + dst
+            + " degree=" + dstDegree);
+}
 }
