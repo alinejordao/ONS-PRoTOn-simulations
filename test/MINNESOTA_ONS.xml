@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <eonsim version="1.0">
     
-    <ra module="KSP"/>
+    <ra module="Arrigoni"/>
     <trace file="trace_minnesota.tr"/>
     <traffic calls="5000" load="50" cos="1" statisticStart="0">
     <calls holding-time="1" rate="100000" cos="0" weight="50"/>
@@ -20,29 +20,24 @@
                  delay-tolerance-max="0"
                  weight="1"/>
     </QoS>
-    <disaster-event Events_Num="3">
-    <disaster-area numNodes="1" numLinks="5">
-        <nodes>
-            <node id="10"/>
-        </nodes>
-        <links>
-            <link id="50"/>
-            <link id="51"/>
-            <link id="52"/>
-            <link id="53"/>
-            <link id="54"/>
-        </links>
-    </disaster-area>
-
-    <disaster-area numNodes="0" numLinks="3">
+    <disaster-event Events_Num="5">
+    <disaster-area numNodes="0" numLinks="10">
         <nodes/>
         <links>
-            <link id="100"/>
-            <link id="101"/>
-            <link id="102"/>
+            <!-- 10 links usados -->
+            <link id="0"/>
+            <link id="1"/>
+            <link id="2"/>
+            <link id="3"/>
+            <link id="4"/>
+            <link id="5"/>
+            <link id="6"/>
+            <link id="7"/>
+            <link id="8"/>
+            <link id="9"/>
         </links>
     </disaster-area>
-    </disaster-event>
+</disaster-event>
     <virtual-topology name="MINNESOTA"/>
     <physical-topology name="MINNESOTA"
         mensageProcessingTime="1.0E-5" configurationTimeOXC="1.0E-5" propagationDelayTime="4.0E-4"

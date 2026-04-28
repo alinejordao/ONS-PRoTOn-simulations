@@ -8,17 +8,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- *
- * @author Aline
- * 
  * RA baseado em:
  * "Tomography-based progressive network recovery and critical service restoration
- * after massive failures", IEEE INFOCOM 2023 (Arrigoni et al.).
+ * after massive failures" (Arrigoni et al., INFOCOM 2023).
+ *
  */
 public class Arrigoni implements RA {
 
     private ControlPlaneForRA cp;
-    private WeightedGraph fullGraph;        // grafo original (pré-falha)
+    private WeightedGraph fullGraph; // grafo original pré-falha
 
     @Override
     public void simulationInterface(ControlPlaneForRA cp) {
@@ -26,70 +24,86 @@ public class Arrigoni implements RA {
         this.fullGraph = cp.getPT().getWeightedGraph();
     }
 
-    /* =========================
-       1. Rotas em condições normais
-       ========================= */
+    /* ========= 1. Roteamento normal ========= */
 
     @Override
     public void flowArrival(Flow flow) {
-        // Roteamento/alocação “baseline”.
-        // Você pode começar copiando algo tipo KSP/First-Fit
-        // ou uma versão simplificada do EON_QFDDM_*.
+        // Por enquanto, está KSP simples (1 caminho) como roteamento baseline.
+        int K = 1;
+        ArrayList<Integer>[] paths = YenKSP.kShortestPaths(
+                fullGraph,
+                flow.getSource(),
+                flow.getDestination(),
+                K
+        );
+
+        if (paths == null || paths.length == 0 || paths[0] == null) {
+            cp.blockFlow(flow.getID());
+            return;
+        }
+ 
+        boolean accepted = tryRerouteAndRestore(flow, paths);
+        if (!accepted) {
+            cp.blockFlow(flow.getID());
+        }
     }
 
     @Override
     public void flowDeparture(long id) {
-        // Nenhum tratamento especial necessário neste momento.
+        // Nada por enquanto.
     }
 
-    /* =========================
-       2. Entrada de desastre
-       ========================= */
+    /* ========= 2. Entrada de desastre ========= */
 
     @Override
     public void disasterArrival(DisasterArea area) {
 
-        // 1) Construir visão pós-falha (grafo tomográfico aproximado)
+        // 1) Construir grafo pós-falha
         WeightedGraph postGraph = computeTomographicGraph(cp.getPT(), area);
 
-        // 2) Selecionar fluxos interrompidos e classificá-los
+        // 2) Obter fluxos interrompidos
         List<Flow> interrupted = new ArrayList<>(cp.getInteruptedFlows());
-        List<Flow> criticalFlows   = selectCriticalFlows(interrupted);
+         System.out.println("Interrupted flows: " + interrupted.size());
+         System.out.println("Esta vendo os fluxos interrompidos");
+        // 3) Separar críticos / não críticos (aqui está simples, tudo crítico)
+        List<Flow> criticalFlows = selectCriticalFlows(interrupted);
         List<Flow> nonCriticalFlows = selectNonCriticalFlows(interrupted);
 
-        // 3) Aplicar esquema de recuperação progressiva:
-        //    - possivelmente degradar alguns flows sobreviventes
-        //    - restaurar críticos em ondas
+        // 4) Aplicar recuperação progressiva
         progressiveRecovery(postGraph, criticalFlows, nonCriticalFlows);
     }
 
     @Override
     public void disasterDeparture() {
-        // Se o modelo do paper tiver alguma ação no "fim" do desastre, trate aqui.
+        // Pode ficar vazio nesta versão inicial.
     }
 
-    /* =========================
-       3. Flows atrasados (se usar)
-       ========================= */
+    /* ========= 3. Flows atrasados (opcional) ========= */
 
     @Override
-    public void delayedFlowDeparture(Flow f) {
-        // Se você usar flows atrasados (delay tolerant), trate aqui.
-    }
+    public void delayedFlowDeparture(Flow f) { }
 
     @Override
     public void delayedFlowArrival(Flow f) {
-        // Pode reutilizar a lógica de restauro progressivo para flows atrasados.
-        // Por exemplo, tentar upgrade/re-roteamento novamente depois de algum tempo.
+        // Para já: tentar re-rotear de novo no grafo atual
+        int K = 1;
+        WeightedGraph postGraph = computeTomographicGraph(cp.getPT(), null);
+        ArrayList<Integer>[] paths = YenKSP.kShortestPaths(
+                postGraph, f.getSource(), f.getDestination(), K);
+        boolean restored = tryRerouteAndRestore(f, paths);
+        if (!restored) {
+            cp.dropFlow(f);
+            f.updateTransmittedBw();
+        }
     }
 
-    /* =========================
-       4. Métodos auxiliares – “tomography-based recovery”
-       ========================= */
+    /* ========= 4. Constrói um grafo pós-falha ========= */
 
     /**
-     * Constrói um grafo pós-falha, possivelmente incorporando
-     * informação tomográfica (pesos/capacidades inferidos).
+     * Aqui:
+     *  - Links interrompidos recebem peso infinito (inutilizáveis).
+     *  - Demais links mantêm o peso original.
+     *  Depois enriquecer com “tomografia” (usando ocupação, etc.).
      */
     private WeightedGraph computeTomographicGraph(PhysicalTopology pt, DisasterArea area) {
         int nodes = pt.getNumNodes();
@@ -101,13 +115,10 @@ public class Arrigoni implements RA {
                     EONLink link = (EONLink) pt.getLink(i, j);
 
                     if (link.isIsInterupted()) {
-                        // Link totalmente indisponível pós-falha
+                        // link quebrado: não deve ser usado
                         g.addEdge(i, j, Integer.MAX_VALUE);
                     } else {
-                        // Aqui você pode ajustar o peso conforme “tomografia”:
-                        // - uso de banda
-                        // - latência estimada
-                        // - etc.
+                        // por enquanto, peso = weight original
                         g.addEdge(i, j, link.getWeight());
                     }
                 }
@@ -116,114 +127,224 @@ public class Arrigoni implements RA {
         return g;
     }
 
-    /**
-     * Seleciona os fluxos considerados críticos (por exemplo,
-     * classes de serviço mais altas, menor tolerância a atraso/degradação).
-     */
+    /* ========= 5. Seleção de fluxos ========= */
+
     private List<Flow> selectCriticalFlows(List<Flow> interrupted) {
         List<Flow> critical = new ArrayList<>();
         for (Flow f : interrupted) {
-            ServiceInfo si = f.getServiceInfo();
-            int serviceClass = si.getServiceInfo();
-
-            // Exemplo: classes 0 e 1 são críticas
-            if (serviceClass == 0 || serviceClass == 1) {
-                critical.add(f);
-            }
+            // todo mundo é crítico
+            // Depois usar f.getServiceInfo().getServiceInfo() para filtrar
+            critical.add(f);
         }
         return critical;
     }
 
-    /**
-     * Demais fluxos interrompidos, não críticos.
-     */
     private List<Flow> selectNonCriticalFlows(List<Flow> interrupted) {
-        List<Flow> nonCritical = new ArrayList<>();
-        for (Flow f : interrupted) {
-            ServiceInfo si = f.getServiceInfo();
-            int serviceClass = si.getServiceInfo();
-
-            if (!(serviceClass == 0 || serviceClass == 1)) {
-                nonCritical.add(f);
-            }
-        }
-        return nonCritical;
+        // Por enquanto, nenhum não-crítico
+        return new ArrayList<>();
     }
 
-    /**
-     * Aplica a lógica de recuperação progressiva:
-     *  - possivelmente degradar flows sobreviventes para liberar recursos;
-     *  - restaurar flows críticos com prioridade;
-     *  - tratar flows não críticos de forma best-effort.
-     */
+    /* ========= 6. Recuperação progressiva ========= */
+
     private void progressiveRecovery(WeightedGraph postGraph,
                                      List<Flow> criticalFlows,
                                      List<Flow> nonCriticalFlows) {
 
-        // 1) Opcional: degradar alguns flows sobreviventes (não interrompidos)
-        //    para liberar capacidade, conforme política do paper.
-        // degradeSurvivedFlowsForCapacity(postGraph);
+        // 1) (Opcional) degradar flows sobreviventes para liberar recursos
 
-        // 2) Restaurar críticos em ordem de prioridade (classe de serviço, SLA, etc.)
+        // 2) Restaurar críticos
         restoreCriticalFlows(postGraph, criticalFlows);
 
-        // 3) Tentar restaurar não críticos (best-effort)
+        // 3) Restaurar não críticos (aqui vazio, por enquanto)
         restoreNonCriticalFlows(postGraph, nonCriticalFlows);
     }
 
-    /**
-     * Restaura fluxos críticos usando o grafo pós-falha:
-     *  - computa K rotas,
-     *  - tenta alocar espectro,
-     *  - se conseguir, cp.restoreFlow(f); senão, pode atrasar ou dropar.
-     */
-    private void restoreCriticalFlows(WeightedGraph postGraph, List<Flow> criticalFlows) {
-        int K = 3; // ou o que fizer sentido
+   private void restoreCriticalFlows(WeightedGraph postGraph, List<Flow> criticalFlows) {
+    int K = 3;
+    for (Flow f : criticalFlows) {
+        ArrayList<Integer>[] paths = YenKSP.kShortestPaths(
+                postGraph, f.getSource(), f.getDestination(), K);
 
-        for (Flow f : criticalFlows) {
-            // Exemplo: tente re-rotear como na flowArrival, mas usando postGraph
-            ArrayList<Integer>[] paths = YenKSP.kShortestPaths(
-                    postGraph, f.getSource(), f.getDestination(), K);
+        boolean recovered = tryRecovery(f, paths);
 
-            boolean restored = tryRerouteAndRestore(f, paths);
-            if (!restored) {
-                // Política do paper: atrasar, degradar mais, ou dropar
-                cp.dropFlow(f);
-                f.updateTransmittedBw();
-            }
+        if (!recovered) {
+            // não conseguiu restaurar → dropa
+            cp.dropFlow(f);
+            f.updateTransmittedBw();
         }
+        // se recovered == true,
+        // rerouteFlow + restoreFlow já foram chamados dentro de tryRecovery
     }
+}
 
-    /**
-     * Restauração best-effort para fluxos não críticos.
-     */
+
+
     private void restoreNonCriticalFlows(WeightedGraph postGraph, List<Flow> nonCriticalFlows) {
-        int K = 3;
+        // Futuro: mesma lógica que críticos, mas com política mais “best effort”
+    }
 
-        for (Flow f : nonCriticalFlows) {
-            ArrayList<Integer>[] paths = YenKSP.kShortestPaths(
-                    postGraph, f.getSource(), f.getDestination(), K);
+    /* ========= 7. Re-roteamento e restauro ========= */
 
-            boolean restored = tryRerouteAndRestore(f, paths);
-            if (!restored) {
-                // Menos prioridade: provavelmente apenas drop
-                cp.dropFlow(f);
-                f.updateTransmittedBw();
+    /**
+     * Tenta (re)rotear um fluxo usando caminhos candidatos.
+     * Retorna true se conseguiu aceitar/restaurar, false caso contrário.
+     */
+    
+    // tryRerouteAndRestore só para chegadas novas 
+    private boolean tryRerouteAndRestore(Flow f, ArrayList<Integer>[] paths) {
+
+        if (paths == null) return false;
+
+        long id;
+        LightPath[] lps = new LightPath[1];
+
+        OUTER:
+        for (ArrayList<Integer> path : paths) {
+            if (path == null || path.isEmpty()) continue;
+
+            int[] nodes = convertIntegers(path);
+            if (nodes.length == 0) continue;
+
+            int[] links = new int[nodes.length - 1];
+            for (int j = 0; j < nodes.length - 1; j++) {
+                links[j] = cp.getPT().getLink(nodes[j], nodes[j + 1]).getID();
+            }
+
+            // tamanho da rota
+            double sizeRoute = 0;
+            for (int linkId : links) {
+                sizeRoute += cp.getPT().getLink(linkId).getWeight();
+            }
+
+            int modulation = Modulation.getBestModulation(sizeRoute);
+            f.setModulation(modulation);
+
+            int requiredSlots = Modulation.convertRateToSlot(
+                    f.getBwReq(),
+                    EONPhysicalTopology.getSlotSize(),
+                    modulation
+            );
+            if (requiredSlots >= 100000) continue;
+
+            // checar capacidade em todos os links
+            for (int linkId : links) {
+                if (!((EONLink) cp.getPT().getLink(linkId)).hasSlotsAvaiable(requiredSlots)) {
+                    continue OUTER;
+                }
+            }
+
+            // First-Fit: tentar slots do primeiro link
+            int[] firstSlot = ((EONLink) cp.getPT().getLink(links[0]))
+                    .getSlotsAvailableToArray(requiredSlots);
+
+            for (int slot : firstSlot) {
+                EONLightPath lp = cp.createCandidateEONLightPath(
+                        f.getSource(),
+                        f.getDestination(),
+                        links,
+                        slot,
+                        slot + requiredSlots - 1,
+                        modulation
+                );
+
+                if ((id = cp.getVT().createLightpath(lp)) >= 0) {
+                    lps[0] = cp.getVT().getLightpath(id);
+
+                    // aceitando (para chegada normal) ou restaurando (para interrompido)
+                    // aqui o acceptFlow, para fora de desastre; dentro de disasterArrival
+                    if (cp.acceptFlow(f.getID(), lps)) {
+                        return true;
+                    } else {
+                        cp.getVT().deallocatedLightpath(id);
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+ * Tenta re-rotear e RESTAURAR um fluxo interrompido.
+ * Usa rerouteFlow + restoreFlow.
+ */
+    private boolean tryRecovery(Flow f, ArrayList<Integer>[] paths) {
+    if (paths == null) return false;
+
+    long id;
+    LightPath[] lps = new LightPath[1];
+
+    OUTER:
+    for (ArrayList<Integer> path : paths) {
+        if (path == null || path.isEmpty()) continue;
+
+        int[] nodes = convertIntegers(path);
+        if (nodes.length == 0) continue;
+
+        int[] links = new int[nodes.length - 1];
+        for (int j = 0; j < nodes.length - 1; j++) {
+            links[j] = cp.getPT().getLink(nodes[j], nodes[j + 1]).getID();
+        }
+
+        double sizeRoute = 0;
+        for (int linkId : links) {
+            sizeRoute += cp.getPT().getLink(linkId).getWeight();
+        }
+
+        int modulation = Modulation.getBestModulation(sizeRoute);
+        f.setModulation(modulation);
+
+        int requiredSlots = Modulation.convertRateToSlot(
+                f.getBwReq(),
+                EONPhysicalTopology.getSlotSize(),
+                modulation
+        );
+        if (requiredSlots >= 100000) continue;
+
+        for (int linkId : links) {
+            if (!((EONLink) cp.getPT().getLink(linkId)).hasSlotsAvaiable(requiredSlots)) {
+                continue OUTER;
+            }
+        }
+
+        int[] firstSlot = ((EONLink) cp.getPT().getLink(links[0]))
+                .getSlotsAvailableToArray(requiredSlots);
+
+        for (int slot : firstSlot) {
+            EONLightPath lp = cp.createCandidateEONLightPath(
+                    f.getSource(),
+                    f.getDestination(),
+                    links,
+                    slot,
+                    slot + requiredSlots - 1,
+                    modulation
+            );
+
+            if ((id = cp.getVT().createLightpath(lp)) >= 0) {
+                lps[0] = cp.getVT().getLightpath(id);
+
+                // Aqui usamos rerouteFlow, pois o fluxo já existia
+                if (cp.rerouteFlow(f.getID(), lps)) {
+                    // e marcamos explicitamente como restaurado
+                    cp.restoreFlow(f);
+                    return true;
+                } else {
+                    cp.getVT().deallocatedLightpath(id);
+                }
             }
         }
     }
 
-    /**
-     * Tenta re-rotear um fluxo usando um conjunto de caminhos candidatos
-     * e criar um novo lightpath + restauro.
-     */
-    private boolean tryRerouteAndRestore(Flow f, ArrayList<Integer>[] paths) {
-        // Aqui você pode reutilizar o padrão que já existe em EON_QFDDM_RESMF:
-        // - converter caminho em links
-        // - escolher modulação
-        // - converter rate em slots
-        // - tentar First-Fit
-        // - se conseguir: cp.restoreFlow(f) ou cp.upgradeFlow(f, lps)
-        return false; // placeholder
+    return false;
+}
+
+    /* ========= 8. Utilitário: converter lista para array ========= */
+
+    private int[] convertIntegers(ArrayList<Integer> integers) {
+        int[] ret = new int[integers.size()];
+        for (int i = 0; i < ret.length; i++) {
+            ret[i] = integers.get(i);
+        }
+        return ret;
     }
 }
