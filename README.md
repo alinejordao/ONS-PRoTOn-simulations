@@ -50,21 +50,3 @@ Exemplo de execução pelo NetBeans:
 ## Status
 
 Projeto em desenvolvimento para fins acadêmicos e experimentais.
-
-## Comparativo: PRoTOn original vs. implementação PRoTOn-like no ONS
-
-| Aspecto | PRoTOn original | Implementação no ONS |
-|---|---|---|
-| Modelo de rede | Grafo abstrato com falhas e recuperação progressiva | Topologia física do ONS com enlaces, slots, modulação e lightpaths |
-| Objetivo principal | Recuperar serviços críticos após falhas massivas usando tomografia de rede | Restaurar fluxos interrompidos em EONs usando recuperação progressiva adaptada ao ONS |
-| Tomografia | Bayesian Network Tomography | Simulação de incerteza via probabilidade de falha na tentativa de rota |
-| Conhecimento da rede | Probabilístico, atualizado por inferência | `knownGraph` atualizado parcialmente após restaurações bem-sucedidas |
-| Recuperação | Progressiva, baseada em caminhos e reparos | Iterativa, com múltiplas rodadas de tentativa de restauração |
-| Priorização | Baseada em impacto/custo da recuperação | Score com banda, custo da rota, número de hops e disponibilidade de slots |
-| Alocação de recursos | Mais abstrata, focada no grafo | Específica do ONS: slots, modulação, lightpaths e `acceptFlow` |
-| Fluxos interrompidos | Serviços críticos são priorizados | Todos os fluxos interrompidos são tratados como críticos nesta versão |
-| Incerteza | Modelada matematicamente por tomografia bayesiana | Aproximada por rejeição probabilística de rotas viáveis |
-| Aprendizado da rede | Atualização probabilística do estado dos elementos | Aprendizado parcial dos links usados em rotas restauradas |
-| Busca por solução | Estratégia orientada por custo/benefício | KSP + limite de tentativas por slots |
-| Diferença principal | Algoritmo original com inferência probabilística formal | Adaptação prática ao ONS, respeitando restrições físicas de EON |
-| Contribuição da adaptação | — | Integra recuperação progressiva com espectro, modulação e provisionamento realista |
