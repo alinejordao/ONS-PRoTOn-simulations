@@ -1,6 +1,6 @@
 # Simulações em Redes Ópticas Elásticas
 
-Arrigoni.java - A progressive, uncertainty-aware recovery algorithm with partial network knowledge reconstruction for Elastic Optical Networks
+arrigoni.java - A progressive, uncertainty-aware recovery algorithm with partial network knowledge reconstruction for Elastic Optical Networks
 
 Este repositório contém adaptações e experimentos realizados no simulador ONS para avaliação de cenários em Redes Ópticas Elásticas, com foco em recuperação progressiva de serviços após falhas de larga escala.
 
