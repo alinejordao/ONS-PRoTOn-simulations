@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <eonsim version="1.0">
     
-    <ra module="Arrigoni"/>
+    <ra module="PRoTOn_ONS"/>
     <trace file="trace_minnesota.tr"/>
 <traffic calls="5000" load="50" cos="1" statisticStart="0">
     <calls holding-time="1" rate="100000" cos="0" weight="50"/>
