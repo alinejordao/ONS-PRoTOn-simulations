@@ -82,7 +82,7 @@ public class PRoTOn_ONS implements RA {
     public void disasterArrival(DisasterArea area) {
 
         // Constrói o grafo pós-falha removendo enlaces interrompidos.
-        WeightedGraph postGraph = computeTomographicGraph(cp.getPT(), area);
+        WeightedGraph postGraph = buildPostFailureGraph(cp.getPT());
 
         // Inicializa o grafo conhecido com o estado pós-falha inicial.
         // Depois, ele será atualizado progressivamente conforme caminhos forem restaurados.
@@ -120,7 +120,7 @@ public class PRoTOn_ONS implements RA {
     public void delayedFlowArrival(Flow f) {
         // Tenta reacomodar fluxos atrasados usando o grafo pós-falha atual.
         int K = 1;
-        WeightedGraph postGraph = computeTomographicGraph(cp.getPT(), null);
+        WeightedGraph postGraph = buildPostFailureGraph(cp.getPT());
 
         ArrayList<Integer>[] paths = YenKSP.kShortestPaths(
                 postGraph,
@@ -148,7 +148,7 @@ public class PRoTOn_ONS implements RA {
      *  - Enlaces interrompidos NÃO são adicionados ao grafo.
      *  - Isso evita que o KSP tente usar enlaces quebrados com peso infinito.
      */
-    private WeightedGraph computeTomographicGraph(PhysicalTopology pt, DisasterArea area) {
+    private WeightedGraph buildPostFailureGraph(PhysicalTopology pt) {
         int nodes = pt.getNumNodes();
         WeightedGraph g = new WeightedGraph(nodes);
 
@@ -529,6 +529,16 @@ public class PRoTOn_ONS implements RA {
                     .getSlotsAvailableToArray(requiredSlots);
 
             System.out.println("[ETAPA 08] Quantidade de slots candidatos no primeiro link: " + firstSlot.length);
+            
+            // Incerteza simulada no nível do caminho, não no nível do slot.
+            // Representa incerteza sobre o estado dos enlaces da rota.
+            double pathUncertaintyProbability = 0.2;
+
+            if (Math.random() < pathUncertaintyProbability) {
+               System.out.println("[ETAPA 08] Incerteza simulada: caminho descartado para fluxo ID="
+                 + f.getID());
+            continue;
+            }
 
             // Limita a busca por slots para evitar varredura exaustiva do espectro.
             int maxAttempts = 20;
@@ -542,14 +552,7 @@ public class PRoTOn_ONS implements RA {
 
                 attempts++;
 
-                // Incerteza simulada: representa a possibilidade de o conhecimento
-                // do estado da rede estar incompleto ou incorreto.
-                double failureProbability = 0.2;
-                if (Math.random() < failureProbability) {
-                    System.out.println("[ETAPA 08] Falha simulada na rota para fluxo ID=" + f.getID()
-                            + " no slot inicial=" + slot);
-                    continue;
-                }
+
 
                 System.out.println("[ETAPA 08] Tentando criar lightpath no slot inicial=" + slot
                         + " slotFinal=" + (slot + requiredSlots - 1));
@@ -573,12 +576,13 @@ public class PRoTOn_ONS implements RA {
                     if (cp.acceptFlow(f.getID(), lps)) {
                         System.out.println("[ETAPA 08] Fluxo aceito novamente ID=" + f.getID());
 
-                        cp.restoreFlow(f);
+                     if (isInterruptedFlow(f)) {
+                 cp.restoreFlow(f);
+                    System.out.println("[ETAPA 08] Fluxo marcado como restaurado ID=" + f.getID());
+                    }
 
-                        // Atualiza parcialmente o conhecimento da rede.
-                        updateKnownGraph(links);
-
-                        return true;
+                    updateKnownGraph(links);
+                    return true;
                     } else {
                         System.out.println("[ETAPA 08] acceptFlow recusou fluxo ID=" + f.getID()
                                 + ". Desalocando lightpath ID=" + id);
@@ -592,6 +596,7 @@ public class PRoTOn_ONS implements RA {
         }
 
         return false;
+        
     }
 
     /* ============================================================
@@ -659,5 +664,13 @@ public class PRoTOn_ONS implements RA {
                 + " | dst=" + dst
                 + " degree=" + dstDegree);
     }
+        private boolean isInterruptedFlow(Flow f) {
+    for (Flow interrupted : cp.getInteruptedFlows()) {
+        if (interrupted.getID() == f.getID()) {
+            return true;
+        }
+    }
+    return false;
+}
 }
 
