@@ -1029,8 +1029,19 @@ public class ControlPlane implements ControlPlaneForRA { // RA is Routing Assign
         
         int droppedFlows = this.getDroppedFlows().size();
         int restoredFlows = this.getRestoredFlows().size();
-        float droppedRate = (float)droppedFlows/(droppedFlows+restoredFlows);
-        float restoreRate = (float)restoredFlows/(droppedFlows+restoredFlows);
+        int totalInterruptedFlows = droppedFlows + restoredFlows;
+
+        float droppedRate;
+        float restoreRate;
+
+        if (totalInterruptedFlows > 0) {
+           droppedRate = (float) droppedFlows / totalInterruptedFlows;
+           restoreRate = (float) restoredFlows / totalInterruptedFlows;
+         } else {
+           droppedRate = 0.0f;
+           restoreRate = 0.0f;
+         }
+        
         st.setFairness(1-st.getMinDegr());        
         st.setDropRate(droppedRate);
         st.setRestoreRate(restoreRate);

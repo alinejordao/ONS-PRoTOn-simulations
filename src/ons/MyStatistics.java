@@ -441,8 +441,10 @@ public class MyStatistics {
             setBpToString(Float.toString(bpDiff[i]));
         }        
         
-        stats += "Drop rate: "+this.dropRate+"\n";
-        stats += "Dropped Flows: "+this.droppedFlows+"\n";
+            stats += "Drop rate: " + this.dropRate + "\n";
+            stats += "Restore rate: " + this.restoreRate + "\n";
+            stats += "Dropped Flows: " + this.droppedFlows + "\n";
+            stats += "Restored Flows: " + this.restoredFlows + "\n";
         if(fullServiceFlows>0){
             
             fullServiceDropRate = (float)this.fullServiceDroppedFlows/this.fullServiceFlows;

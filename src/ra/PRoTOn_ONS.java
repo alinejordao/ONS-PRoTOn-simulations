@@ -35,6 +35,10 @@ public class PRoTOn_ONS implements RA {
     // Ele representa a visão parcial/evolutiva da rede após o desastre.
     private WeightedGraph knownGraph;
 
+    // Estado físico real da rede após o desastre.
+    // Será usado como referência para o aprendizado progressivo do knownGraph.
+    private WeightedGraph postFailureGraph;
+    
     @Override
     public void simulationInterface(ControlPlaneForRA cp) {
         this.cp = cp;
@@ -47,6 +51,7 @@ public class PRoTOn_ONS implements RA {
 
     @Override
     public void flowArrival(Flow flow) {
+       
         // Roteamento baseline para fluxos novos: usa KSP com K = 1.
         int K = 1;
 
@@ -81,17 +86,20 @@ public class PRoTOn_ONS implements RA {
     @Override
     public void disasterArrival(DisasterArea area) {
 
+        System.out.println("[ETAPA 02] Desastre detectado. Preparando recuperacao progressiva.");
+
         // Constrói o grafo pós-falha removendo enlaces interrompidos.
-        WeightedGraph postGraph = buildPostFailureGraph(cp.getPT());
+        this.postFailureGraph = buildPostFailureGraph(cp.getPT()); 
 
         // Inicializa o grafo conhecido com o estado pós-falha inicial.
         // Depois, ele será atualizado progressivamente conforme caminhos forem restaurados.
-        this.knownGraph = postGraph;
-        System.out.println("[ETAPA 02] knownGraph inicializado com o grafo pos-falha.");
+        this.knownGraph = buildInitialKnownGraph(cp.getPT());
 
         // Obtém os fluxos interrompidos pelo desastre.
         List<Flow> interrupted = new ArrayList<>(cp.getInteruptedFlows());
         System.out.println("[ETAPA 02] Fluxos interrompidos: " + interrupted.size());
+        
+        
 
         // Separa fluxos críticos e não críticos.
         // Nesta versão inicial, todos os fluxos interrompidos são tratados como críticos.
@@ -99,7 +107,7 @@ public class PRoTOn_ONS implements RA {
         List<Flow> nonCriticalFlows = selectNonCriticalFlows(interrupted);
 
         // Aplica a recuperação progressiva.
-        progressiveRecovery(postGraph, criticalFlows, nonCriticalFlows);
+        progressiveRecovery(this.postFailureGraph, criticalFlows, nonCriticalFlows);
     }
 
     @Override
@@ -118,6 +126,8 @@ public class PRoTOn_ONS implements RA {
 
     @Override
     public void delayedFlowArrival(Flow f) {
+        System.out.println("[ETAPA 03] Tratando fluxo atrasado ID=" + f.getID());
+
         // Tenta reacomodar fluxos atrasados usando o grafo pós-falha atual.
         int K = 1;
         WeightedGraph postGraph = buildPostFailureGraph(cp.getPT());
@@ -149,6 +159,8 @@ public class PRoTOn_ONS implements RA {
      *  - Isso evita que o KSP tente usar enlaces quebrados com peso infinito.
      */
     private WeightedGraph buildPostFailureGraph(PhysicalTopology pt) {
+        System.out.println("[ETAPA 04] Construindo grafo pos-falha.");
+
         int nodes = pt.getNumNodes();
         WeightedGraph g = new WeightedGraph(nodes);
 
@@ -166,12 +178,113 @@ public class PRoTOn_ONS implements RA {
 
         return g;
     }
+    
+    
+    /**
+ * Constrói a visão inicial parcial da rede conhecida pelo algoritmo.
+ *
+ * O grafo físico pós-falha representa o estado real da rede.
+ * O knownGraph contém inicialmente apenas uma fração dos enlaces
+ * operacionais, simulando conhecimento incompleto após a falha.
+ */
+private WeightedGraph buildInitialKnownGraph(PhysicalTopology pt) {
+
+    System.out.println("[ETAPA 04] Construindo visao inicial parcial do knownGraph.");
+
+    int nodes = pt.getNumNodes();
+    WeightedGraph g = new WeightedGraph(nodes);
+
+    double initialKnowledgeProbability = 0.9;
+
+    int operationalLinks = 0;
+    int knownLinks = 0;
+
+    for (int i = 0; i < nodes; i++) {
+        for (int j = 0; j < nodes; j++) {
+
+            if (pt.hasLink(i, j)) {
+
+                EONLink link = (EONLink) pt.getLink(i, j);
+
+                if (!link.isIsInterupted()) {
+
+                    operationalLinks++;
+
+                    if (Math.random() < initialKnowledgeProbability) {
+                        g.addEdge(i, j, link.getWeight());
+                        knownLinks++;
+                    }
+                }
+            }
+        }
+    }
+
+    System.out.println(
+            "[ETAPA 04] knownGraph parcial construido: "
+            + knownLinks
+            + "/"
+            + operationalLinks
+            + " enlaces operacionais conhecidos."
+    );
+
+    return g;
+}
+
+/* ============================================================
+ * ETAPA 09 - EXPANSÃO PROGRESSIVA DO GRAFO CONHECIDO
+ * ============================================================ */
+
+/**
+ * Expande gradualmente o conhecimento da rede.
+ *
+ * Procura enlaces que estão operacionais no grafo físico pós-falha,
+ * mas ainda não fazem parte do knownGraph.
+ */
+private boolean expandKnownGraph() {
+
+    System.out.println("[ETAPA 09] Expandindo progressivamente o knownGraph...");
+
+    double discoveryProbability = 0.10;
+    boolean learnedSomething = false;
+
+    int nodes = cp.getPT().getNumNodes();
+
+    for (int i = 0; i < nodes; i++) {
+        for (int j = 0; j < nodes; j++) {
+
+            // O enlace existe e está operacional no estado real pós-falha,
+            // mas ainda não é conhecido pelo algoritmo.
+            if (postFailureGraph.isEdge(i, j)
+                    && !knownGraph.isEdge(i, j)) {
+
+                if (Math.random() < discoveryProbability) {
+
+                    double weight = cp.getPT().getLink(i, j).getWeight();
+
+                    knownGraph.addEdge(i, j, weight);
+
+                    learnedSomething = true;
+
+                    System.out.println(
+                            "[ETAPA 09] Novo enlace descoberto: "
+                            + i + " -> " + j
+                    );
+                }
+            }
+        }
+    }
+
+    return learnedSomething;
+}
+
 
     /* ============================================================
      * ETAPA 05 - CLASSIFICAÇÃO DE FLUXOS
      * ============================================================ */
 
     private List<Flow> selectCriticalFlows(List<Flow> interrupted) {
+        System.out.println("[ETAPA 05] Classificando fluxos interrompidos.");
+
         List<Flow> critical = new ArrayList<>();
 
         for (Flow f : interrupted) {
@@ -195,6 +308,8 @@ public class PRoTOn_ONS implements RA {
     private void progressiveRecovery(WeightedGraph postGraph,
                                      List<Flow> criticalFlows,
                                      List<Flow> nonCriticalFlows) {
+
+        System.out.println("[ETAPA 06] Iniciando recuperacao progressiva.");
 
         // Primeiro restaura fluxos críticos.
         restoreCriticalFlows(postGraph, criticalFlows);
@@ -241,7 +356,7 @@ public class PRoTOn_ONS implements RA {
             cost += cp.getPT().getLink(linkId).getWeight();
 
             // Proxy de disponibilidade espectral: soma dos slots livres nos enlaces da rota.
-            slotAvailability += ((EONLink) cp.getPT().getLink(linkId)).getNumFreeSlots();
+            slotAvailability += ((EONLink) cp.getPT().getLink(linkId)).getAvaiableSlots();
         }
 
         if (cost == 0) {
@@ -330,10 +445,25 @@ public class PRoTOn_ONS implements RA {
                 }
             }
 
-            if (!recoveredInThisIteration) {
-                System.out.println("[ETAPA 06] Nenhum fluxo restaurado nesta iteracao. Encerrando recuperacao progressiva.");
-                break;
-            }
+          if (!recoveredInThisIteration) {
+
+    boolean learnedSomething = expandKnownGraph();
+
+    if (learnedSomething) {
+        System.out.println(
+                "[ETAPA 06] Nenhuma restauracao, mas novos enlaces foram descobertos. "
+                + "Iniciando nova iteracao."
+        );
+        continue;
+    }
+
+    System.out.println(
+            "[ETAPA 06] Nenhum fluxo restaurado e nenhum novo enlace descoberto. "
+            + "Encerrando recuperacao progressiva."
+    );
+
+    break;
+}
         }
 
         // Fluxos que permanecerem pendentes são descartados.
@@ -357,6 +487,8 @@ public class PRoTOn_ONS implements RA {
      * Usado para chegadas normais, fora do contexto de recuperação de desastre.
      */
     private boolean tryRerouteAndRestore(Flow f, ArrayList<Integer>[] paths) {
+        
+
         if (paths == null) {
             return false;
         }
@@ -447,6 +579,8 @@ public class PRoTOn_ONS implements RA {
      *  - Ao restaurar, atualiza parcialmente o knownGraph.
      */
     private boolean tryRecovery(Flow f, ArrayList<Integer>[] paths) {
+        System.out.println("[ETAPA 08] Iniciando tentativa de recuperacao do fluxo ID=" + f.getID());
+
         if (paths == null || paths.length == 0) {
             System.out.println("[ETAPA 08] Nenhum caminho candidato para fluxo ID=" + f.getID());
             return false;
@@ -486,14 +620,14 @@ public class PRoTOn_ONS implements RA {
 
             int modulation = Modulation.getBestModulation(sizeRoute);
 
-            // Fallback experimental: se a rota exceder o alcance das modulações,
-            // usa BPSK para permitir testes da lógica de recuperação.
+            
+             // Se nenhuma modulação suportar oficialmente a rota,
+             // este caminho é descartado e o algoritmo tenta o próximo candidato.
             if (modulation < 0) {
-                System.out.println("[ETAPA 08] Nenhuma modulacao suporta oficialmente a rota do fluxo ID="
-                        + f.getID()
-                        + " rotaSize=" + sizeRoute
-                        + ". Usando BPSK como fallback experimental.");
-                modulation = 0;
+                 System.out.println("[ETAPA 08] Rota descartada: nenhuma modulacao suporta oficialmente o fluxo ID="
+                 + f.getID()
+                 + " rotaSize=" + sizeRoute);
+             continue;
             }
 
             f.setModulation(modulation);
@@ -581,7 +715,6 @@ public class PRoTOn_ONS implements RA {
                     System.out.println("[ETAPA 08] Fluxo marcado como restaurado ID=" + f.getID());
                     }
 
-                    updateKnownGraph(links);
                     return true;
                     } else {
                         System.out.println("[ETAPA 08] acceptFlow recusou fluxo ID=" + f.getID()
@@ -597,37 +730,6 @@ public class PRoTOn_ONS implements RA {
 
         return false;
         
-    }
-
-    /* ============================================================
-     * ETAPA 09 - ATUALIZAÇÃO PARCIAL DO GRAFO CONHECIDO
-     * ============================================================ */
-
-    /**
-     * Atualiza o knownGraph com parte dos enlaces utilizados na rota restaurada.
-     *
-     * A atualização parcial simula o fato de que, em cenários pós-desastre,
-     * o algoritmo pode aprender apenas parte do estado real da rede.
-     */
-    private void updateKnownGraph(int[] links) {
-        double learningProbability = 0.6;
-
-        System.out.println("[ETAPA 09] Atualizando knownGraph parcialmente.");
-
-        for (int linkId : links) {
-            if (Math.random() > learningProbability) {
-                System.out.println("[ETAPA 09] Link nao aprendido nesta rodada: ID=" + linkId);
-                continue;
-            }
-
-            int src = cp.getPT().getLink(linkId).getSource();
-            int dst = cp.getPT().getLink(linkId).getDestination();
-            double weight = cp.getPT().getLink(linkId).getWeight();
-
-            knownGraph.addEdge(src, dst, weight);
-
-            System.out.println("[ETAPA 09] Link aprendido: " + src + " -> " + dst);
-        }
     }
 
     /* ============================================================
@@ -647,6 +749,8 @@ public class PRoTOn_ONS implements RA {
      * Ajuda a diagnosticar se o fluxo está sem caminho por isolamento de nó.
      */
     private void debugNodeDegree(WeightedGraph g, int src, int dst) {
+        System.out.println("[ETAPA 10] Executando diagnostico de conectividade no knownGraph.");
+
         int srcDegree = 0;
         int dstDegree = 0;
 
@@ -673,4 +777,3 @@ public class PRoTOn_ONS implements RA {
     return false;
 }
 }
-
