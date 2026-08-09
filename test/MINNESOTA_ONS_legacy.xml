@@ -1,50 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<eonsim version="0.2">
-    <!--<ra module="KSP"/>-->
-    <ra module="EON_QFDDM_RESMF"/>
+<eonsim version="1.0">
+    
+    <ra module="PRoTOn_ONS"/>
     <trace file="trace_minnesota.tr"/>
-
-    <!-- bem pequeno -->
-   <traffic calls="5000" load="50" cos="1" statisticStart="0">
+<traffic calls="5000" load="50" cos="1" statisticStart="0">
     <calls holding-time="1" rate="100000" cos="0" weight="50"/>
     <calls holding-time="1" rate="150000" cos="0" weight="40"/>
     <calls holding-time="1" rate="200000" cos="0" weight="30"/>
     <calls holding-time="1" rate="250000" cos="0" weight="20"/>
     <calls holding-time="1" rate="300000" cos="0" weight="10"/>
-   </traffic>
-    <QoS>
-        <service class="0"
-                 degradation-tolerance-min="0"
-                 degradation-tolerance-max="0"
-                 delay-tolerance-min="0"
-                 delay-tolerance-max="0"
-                 weight="1"/>
-    </QoS>
+</traffic>
 
-<disaster-event Events_Num="5">
-    <disaster-area numNodes="0" numLinks="10">
+<QoS>
+    <service class="0"
+             degradation-tolerance-min="0"
+             degradation-tolerance-max="0"
+             delay-tolerance-min="0"
+             delay-tolerance-max="0"
+             weight="1"/>
+</QoS>
+    <!-- numero de areas com desastres reais -->
+<disaster-event Events_Num="1">
+    <disaster-area numNodes="0" numLinks="1">
         <nodes/>
         <links>
-            <!-- 10 links bem usados -->
-            <link id="0"/>
-            <link id="1"/>
-            <link id="2"/>
-            <link id="3"/>
-            <link id="4"/>
-            <link id="5"/>
-            <link id="6"/>
-            <link id="7"/>
-            <link id="8"/>
-            <link id="9"/>
+            <link id="1074"/>
         </links>
     </disaster-area>
 </disaster-event>
-
-
     <virtual-topology name="MINNESOTA"/>
-
-    <!-- mantém sua physical-topology inteira aqui -->
-
     <physical-topology name="MINNESOTA"
         mensageProcessingTime="1.0E-5" configurationTimeOXC="1.0E-5" propagationDelayTime="4.0E-4"
         switchTime="5.0E-4" oxcTransitionTime="4.5E-4" oxcSleepModeExpenditure="10.0"
