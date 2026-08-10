@@ -84,11 +84,6 @@ no repositório em uma branch independente chamada:
 ons-disaster-master
 ```
 
-Durante a organização do projeto, essa base foi comparada com releases oficiais
-do ONS. Foram identificadas diferenças em relação às versões oficiais analisadas,
-portanto ela é mantida com a denominação `ons-disaster-master`, sem atribuição de
-uma versão oficial específica do ONS.
-
 A preservação dessa baseline permite rastrear o ponto de partida utilizado antes
 das modificações específicas do `PRoTOn_ONS`.
 
