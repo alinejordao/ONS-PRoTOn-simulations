@@ -1,0 +1,37 @@
+PRoTOn_ONS - uso rápido do executor automatizado
+
+1) Coloque executar_experimentos_PRoTOn_ONS.bat na RAIZ do repositório clonado,
+   ao lado de build.xml.
+
+2) Prepare a versão experimental:
+   git fetch --all --tags
+   git checkout proton-ons-testes-v1.2
+
+3) Garanta que Apache Ant esteja disponível:
+   ant -version
+
+4) Fase A - validação dos desastres:
+   executar_experimentos_PRoTOn_ONS.bat A
+
+   Gera 90 execuções:
+   D1, D2, D3 × load 50 × seeds 1..30.
+
+5) Fase B - conjunto de testes:
+   executar_experimentos_PRoTOn_ONS.bat B
+
+   Gera 1.500 execuções:
+   D1, D2, D3 × loads 10..100 × seeds 1..50.
+
+Os outputs ficam em:
+resultados_estagiario\FASE_*\PRoTOn_ONS\D*\L*\
+
+Exemplo:
+PRoTOn_ONS_D2_L50_S017.txt
+
+O script também cria:
+- progresso_execucoes.csv: controle técnico de execução;
+- manifesto_ambiente.txt: hash Git e versões do ambiente.
+
+O script NÃO extrai as métricas científicas. O executor deve conferir cada
+output, preencher a planilha consolidada, investigar erros e conferir se todas
+as combinações previstas foram produzidas.
