@@ -99,7 +99,7 @@ proton-ons-v1.0
 
 ### 🔵 PRoTOn_ONS_MCFP
 
-Extensão futura do `PRoTOn_ONS` incorporando uma estratégia baseada em
+Extensão do `PRoTOn_ONS` incorporando uma estratégia baseada em
 **MCFP (Multi-Commodity Flow Problem)**.
 
 Essa implementação **ainda não faz parte** da baseline
