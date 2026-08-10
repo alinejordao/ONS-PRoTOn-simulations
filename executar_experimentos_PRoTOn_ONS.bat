@@ -34,7 +34,7 @@ if /I "%~1"=="A" (
     set "LOADS=50"
     set "SEED_MAX=30"
 ) else if /I "%~1"=="B" (
-    set "FASE=FASE_B_CAMPANHA"
+    set "FASE=FASE_B_TESTES"
     set "LOADS=10 20 30 40 50 60 70 80 90 100"
     set "SEED_MAX=50"
 ) else (
@@ -118,7 +118,7 @@ if not defined ANT_EXEC (
     exit /b 1
 )
 
-set "RESULT_ROOT=%ROOT%\resultados_estagiario\%FASE%\%ALGORITMO%"
+set "RESULT_ROOT=%ROOT%\resultados_executortestes\%FASE%\%ALGORITMO%"
 if not exist "%RESULT_ROOT%" mkdir "%RESULT_ROOT%"
 
 set "PROGRESSO=%RESULT_ROOT%\progresso_execucoes.csv"
