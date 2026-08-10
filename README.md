@@ -37,9 +37,8 @@ A primeira baseline funcional foi consolidada na tag:
 proton-ons-v1.0
 ```
 
-Essa versão representa um ponto estável da implementação e será
-utilizada como referência para a próxima fase: **exercício experimental
-controlado**.
+Essa versão representa um ponto estável da implementação e serve como
+referência para os testes controlados de validação do mecanismo de recuperação.
 
 ### Principais características
 
@@ -189,6 +188,26 @@ Contém:
 Versão anterior da conversão da Minnesota, preservada para
 **rastreabilidade metodológica**.
 
+### Cenários de desastre `D1`, `D2` e `D3`
+
+Para a validação experimental foram definidos três arquivos derivados da
+configuração Minnesota, mantendo a mesma base de topologia e variando o
+cenário de desastre:
+
+``` text
+test/MINNESOTA_ONS_D1.xml
+test/MINNESOTA_ONS_D2.xml
+test/MINNESOTA_ONS_D3.xml
+```
+
+Os três cenários permitem avaliar o `PRoTOn_ONS` sob diferentes condições
+de falha de forma padronizada e reproduzível. Nos testes comparativos,
+devem ser mantidos os mesmos cenários, cargas e seeds entre as estratégias
+avaliadas.
+
+Os arquivos `D1`, `D2` e `D3` estão versionados no repositório e constituem
+a base da etapa atual de testes da Minnesota.
+
 ------------------------------------------------------------------------
 
 # 📡 Modelo de modulação
@@ -199,16 +218,16 @@ A seleção de modulação segue os limites definidos no ONS em:
 src/ons/Modulation.java
 ```
 
-  Modulação     Alcance máximo
-  ----------- ----------------
-  BPSK                 8000 km
-  QPSK                 4000 km
-  8QAM                 2000 km
-  16QAM                1000 km
-  32QAM                 500 km
-  64QAM                 250 km
-  128QAM                125 km
-  256QAM                 62 km
+| Modulação | Alcance máximo |
+|-----------|---------------:|
+| BPSK      | 8000 km |
+| QPSK      | 4000 km |
+| 8QAM      | 2000 km |
+| 16QAM     | 1000 km |
+| 32QAM     | 500 km |
+| 64QAM     | 250 km |
+| 128QAM    | 125 km |
+| 256QAM    | 62 km |
 
 A modulação é escolhida de acordo com a distância total da rota
 candidata.
@@ -368,6 +387,9 @@ ONS-PRoTOn-simulations/
 ├── 📂 test/
 │   ├── MINNESOTA_ONS.xml
 │   ├── MINNESOTA_ONS_legacy.xml
+│   ├── MINNESOTA_ONS_D1.xml
+│   ├── MINNESOTA_ONS_D2.xml
+│   ├── MINNESOTA_ONS_D3.xml
 │   └── ...
 │
 ├── 📂 Chart/
@@ -403,22 +425,44 @@ A classe principal recebe:
 simulation_file seed numSeed minload maxload step
 ```
 
-Exemplo utilizado durante a validação da Minnesota:
+Os testes atuais utilizam os três cenários de desastre da Minnesota:
 
 ``` text
-test\MINNESOTA_ONS.xml 1 1 50 50 1
+test\MINNESOTA_ONS_D1.xml
+test\MINNESOTA_ONS_D2.xml
+test\MINNESOTA_ONS_D3.xml
 ```
 
-  Parâmetro                Valor
-  ------------------------ --------------------------
-  Topologia/configuração   `test\MINNESOTA_ONS.xml`
-  Seed inicial             `1`
-  Número de seeds          `1`
-  Carga mínima             `50`
-  Carga máxima             `50`
-  Step                     `1`
+Uma execução individual pode ser configurada, por exemplo, com um desses
+arquivos XML, seed e carga definidos para o teste.
 
-Os parâmetros experimentais serão definidos na próxima etapa, antes da execução dos testes.
+Para a execução sistemática foi incluído na raiz do repositório:
+
+``` text
+executar_experimentos_PRoTOn_ONS.bat
+```
+
+O executor organiza os resultados em:
+
+``` text
+resultados_executortestes\
+└── FASE_*\
+    └── PRoTOn_ONS\
+        └── D*\
+            └── L*\
+```
+
+As instruções operacionais detalhadas estão em:
+
+``` text
+LEIA-ME_TESTES.txt
+```
+
+A versão congelada preparada para essa etapa está identificada pela tag:
+
+``` text
+proton-ons-testes-final-v1
+```
 
 ------------------------------------------------------------------------
 
@@ -448,30 +492,29 @@ estratégias comparadas.
 
 # ⚖️ Plano experimental
 
-A próxima fase consiste na definição de uma matriz experimental comum.
+A etapa atual utiliza uma matriz de testes comum e reproduzível para a
+topologia Minnesota.
 
-As abordagens deverão utilizar, sempre que metodologicamente aplicável,
-os mesmos:
+Os testes do `PRoTOn_ONS` consideram:
 
--   🗺️ cenários/topologias;
--   📈 níveis de carga;
--   🎲 seeds;
--   🌩️ eventos de desastre;
--   📡 parâmetros ópticos;
--   📊 métricas;
--   🧪 critérios de avaliação.
+-   🗺️ topologia Minnesota;
+-   🌩️ três cenários de desastre: `D1`, `D2` e `D3`;
+-   📈 níveis de carga definidos no executor;
+-   🎲 múltiplas seeds;
+-   📡 os mesmos parâmetros ópticos;
+-   📊 métricas comuns de restauração e descarte;
+-   🧪 organização padronizada dos resultados.
 
-Objetivo comparativo:
+A combinação básica de cada execução pode ser representada como:
 
 ``` text
-ons-disaster-master
-        ×
-PRoTOn_ONS
-        ×
-PRoTOn_ONS_MCFP
+Estratégia × Desastre (D1/D2/D3) × Load × Seed
 ```
 
-A primeira campanha será baseada na **Minnesota**.
+A primeira etapa tem como objetivo validar sistematicamente o
+`PRoTOn_ONS` nos três cenários da Minnesota. Em seguida, os mesmos
+princípios experimentais poderão ser aplicados às demais estratégias,
+permitindo comparação sob condições equivalentes.
 
 Posteriormente, pretende-se avaliar as implementações em pelo menos uma
 **topologia nativa do ONS**, permitindo observar seu comportamento fora
@@ -513,6 +556,19 @@ Inclui:
 > 🔒 Essa tag representa o ponto de referência da implementação
 > `PRoTOn_ONS` para os experimentos posteriores.
 
+## `proton-ons-testes-final-v1`
+
+Versão congelada preparada para a execução dos testes controlados da
+Minnesota.
+
+Inclui:
+
+-   ✅ cenários `MINNESOTA_ONS_D1.xml`, `D2.xml` e `D3.xml`;
+-   ✅ executor automatizado `executar_experimentos_PRoTOn_ONS.bat`;
+-   ✅ organização dos outputs em `resultados_executortestes`;
+-   ✅ instruções operacionais em `LEIA-ME_TESTES.txt`;
+-   ✅ estrutura padronizada por fase, desastre, carga e seed.
+
 ------------------------------------------------------------------------
 
 # 🚀 Roadmap
@@ -537,10 +593,14 @@ Inclui:
 ### Experimentos
 
 -   [x] Preservação da baseline `ons-disaster-master` em branch independente
--   [ ] Definição da matriz experimental
+-   [x] Definição dos cenários de desastre `D1`, `D2` e `D3`
+-   [x] Versionamento dos XMLs de teste da Minnesota
+-   [x] Criação do executor automatizado dos testes
+-   [x] Padronização da estrutura de resultados
+-   [x] Documentação operacional dos testes
 -   [ ] Execução sistemática do `PRoTOn_ONS`
--   [ ] Execução da baseline `ons-disaster-master` sob a mesma matriz
--   [ ] Consolidação dos resultados
+-   [ ] Consolidação e análise dos resultados
+-   [ ] Execução das estratégias comparativas sob a mesma matriz
 
 ### Próxima evolução
 
