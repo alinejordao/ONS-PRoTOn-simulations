@@ -68,17 +68,29 @@ controlado**.
 A proposta experimental prevê a comparação entre três abordagens:
 
 ``` text
-ONS original
-     │
-     ├── PRoTOn_ONS
-     │
-     └── PRoTOn_ONS_MCFP
+ons-disaster-master
+        │
+        ├── PRoTOn_ONS
+        │
+        └── PRoTOn_ONS_MCFP
 ```
 
-### 🟣 ONS original
+### 🟣 ons-disaster-master
 
-Baseline do simulador utilizada como referência, sem as modificações de
-recuperação progressiva introduzidas neste trabalho.
+Baseline histórica utilizada como referência para o desenvolvimento, preservada
+no repositório em uma branch independente chamada:
+
+``` text
+ons-disaster-master
+```
+
+Durante a organização do projeto, essa base foi comparada com releases oficiais
+do ONS. Foram identificadas diferenças em relação às versões oficiais analisadas,
+portanto ela é mantida com a denominação `ons-disaster-master`, sem atribuição de
+uma versão oficial específica do ONS.
+
+A preservação dessa baseline permite rastrear o ponto de partida utilizado antes
+das modificações específicas do `PRoTOn_ONS`.
 
 ### 🟪 PRoTOn_ONS
 
@@ -433,7 +445,7 @@ incluindo:
 -   ⛔ descarte quando a recuperação não é possível;
 -   📊 cálculo das métricas de recuperação.
 
-Resultados quantitativos de desempenho serão produzidos em uma
+Resultados quantitativos de desempenho serão produzidos em
 **experimentos controlados**, utilizando parâmetros comuns às
 estratégias comparadas.
 
@@ -457,10 +469,10 @@ os mesmos:
 Objetivo comparativo:
 
 ``` text
-ONS original
-      ×
+ons-disaster-master
+        ×
 PRoTOn_ONS
-      ×
+        ×
 PRoTOn_ONS_MCFP
 ```
 
@@ -473,6 +485,19 @@ do cenário utilizado durante a adaptação inicial.
 ------------------------------------------------------------------------
 
 # 🏷️ Versionamento
+
+O repositório mantém separadas a baseline histórica e a linha atual de
+desenvolvimento.
+
+### Branch `main`
+
+Contém o desenvolvimento atual do `PRoTOn_ONS`.
+
+### Branch `ons-disaster-master`
+
+Preserva a base histórica `ons-disaster-master` em uma linha independente de
+histórico. O primeiro commit dessa branch registra a fotografia da base utilizada
+como referência, sem misturá-la artificialmente ao histórico do `PRoTOn_ONS`.
 
 ## `proton-ons-v1.0`
 
@@ -516,9 +541,10 @@ Inclui:
 
 ### Experimentos
 
+-   [x] Preservação da baseline `ons-disaster-master` em branch independente
 -   [ ] Definição da matriz experimental
 -   [ ] Execução sistemática do `PRoTOn_ONS`
--   [ ] Preparação da baseline do ONS original
+-   [ ] Execução da baseline `ons-disaster-master` sob a mesma matriz
 -   [ ] Consolidação dos resultados
 
 ### Próxima evolução
