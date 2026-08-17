@@ -7,6 +7,7 @@ package ons.ra;
 
 import ons.DisasterArea;
 import ons.Flow;
+import java.util.Map;
 
 /**
  * This is the interface that provides some methods for the RA class.
@@ -21,6 +22,19 @@ import ons.Flow;
 public interface RA {
     
     public void simulationInterface(ControlPlaneForRA cp);
+    
+/**
+ * Permite que cada algoritmo RA receba parametros opcionais
+ * definidos no XML da simulacao.
+ *
+ * A implementacao padrao nao executa nenhuma acao,
+ * preservando compatibilidade com os algoritmos existentes.
+ *
+ * @param parameters mapa de parametros configurados no elemento <ra>
+ */
+default void setParameters(Map<String, String> parameters) {
+    // Nenhuma acao por padrao.
+}    
 
     public void flowArrival(Flow flow);
     

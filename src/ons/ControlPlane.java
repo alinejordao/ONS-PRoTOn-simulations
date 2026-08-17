@@ -45,7 +45,7 @@ public class ControlPlane implements ControlPlaneForRA { // RA is Routing Assign
      * @param pt the network's physical topology
      * @param vt the network's virtual topology
      */
-    public ControlPlane(String raModule, PhysicalTopology pt, VirtualTopology vt) {
+    public ControlPlane(String raModule,PhysicalTopology pt,VirtualTopology vt,Map<String, String> raParameters) {
         Class RAClass;
 
         mappedFlows = new HashMap<Flow, Path>();
@@ -59,14 +59,17 @@ public class ControlPlane implements ControlPlaneForRA { // RA is Routing Assign
         this.pt = pt;
         this.vt = vt;
 
-        try {
-            RAClass = Class.forName(raModule);
-            ra = (RA) RAClass.newInstance();
-            ra.simulationInterface(this);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
+   try {
+    RAClass = Class.forName(raModule);
+    ra = (RA) RAClass.newInstance();
 
+    ra.setParameters(raParameters);
+
+    ra.simulationInterface(this);
+
+} catch (Throwable t) {
+    t.printStackTrace();
+}
     }
 
     /**

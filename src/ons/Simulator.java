@@ -13,6 +13,8 @@ import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Locale;
 import org.w3c.dom.*;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.DocumentBuilder;
@@ -197,11 +199,44 @@ public class Simulator {
             }
             tr.toogleTraceWriting(Simulator.trace);
             
-            String raModule = "ons.ra." + ((Element) doc.getElementsByTagName("ra").item(0)).getAttribute("module");
+ 
+ Element raElement = (Element) doc.getElementsByTagName("ra").item(0);
+
+String raModule = "ons.ra." + raElement.getAttribute("module");
+
+/*
+ * Coleta parametros opcionais configurados no elemento <ra>.
+ *
+ * Exemplo:
+ *
+ * <ra module="PRoTOn_ONS" prior="0.02063" />
+ */
+Map<String, String> raParameters =
+        new HashMap<>();
+
+org.w3c.dom.NamedNodeMap attributes =
+        raElement.getAttributes();
+
+for (int i = 0; i < attributes.getLength(); i++) {
+
+    Node attribute = attributes.item(i);
+
+    String name = attribute.getNodeName();
+    String value = attribute.getNodeValue();
+
+    /*
+     * "module" identifica a classe RA e nao e um
+     * parametro interno do algoritmo.
+     */
+    if (!"module".equals(name)) {
+        raParameters.put(name, value);
+    }
+}
+
             if (Simulator.verbose) {
                 System.out.println("RA module: " + raModule);
             }
-            ControlPlane cp = new ControlPlane(raModule, pt, vt);
+            ControlPlane cp = new ControlPlane(raModule,pt,vt,raParameters);
 
             if (Simulator.verbose) {
                 System.out.println("(4) Done. (" + Float.toString((float) ((float) (System.currentTimeMillis() - begin) / (float) 1000)) + " sec)\n");

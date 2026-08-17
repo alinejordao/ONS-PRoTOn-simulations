@@ -4,10 +4,18 @@ import ons.*;
 import ons.util.WeightedGraph;
 import ons.util.YenKSP;
 
+import ra.monitoring.ComponentState;
+import ra.monitoring.Probe;
+import ra.monitoring.Observation;
+import ra.monitoring.ProbeResult;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Algoritmo RA inspirado no PRoTOn:
@@ -39,11 +47,292 @@ public class PRoTOn_ONS implements RA {
     // Será usado como referência para o aprendizado progressivo do knownGraph.
     private WeightedGraph postFailureGraph;
     
-    @Override
+    // Estado conhecido dos enlaces pelo algoritmo de monitoramento.
+    private Map<Integer, ComponentState> linkStates;
+
+    // Probes realizados durante a recuperacao.
+    private List<Probe> probes;
+
+    // Observacoes produzidas pelos probes.
+    private List<Observation> observations;
+    
+ 
+   @Override
     public void simulationInterface(ControlPlaneForRA cp) {
-        this.cp = cp;
-        this.fullGraph = cp.getPT().getWeightedGraph();
+    this.cp = cp;
+    this.fullGraph = cp.getPT().getWeightedGraph();
+
+    this.linkStates = new HashMap<>();
+    this.probes = new ArrayList<>();
+    this.observations = new ArrayList<>();
     }
+    
+    
+ /* ============================================================
+ * MONITORING - ESTADO E OBSERVACAO DA REDE
+ * ============================================================ */
+    
+    /**
+ * Inicializa o estado de conhecimento dos enlaces da topologia.
+ *
+ * Neste momento, todos os enlaces começam como UNKNOWN.
+ * O estado representa o conhecimento do algoritmo sobre o componente,
+ * e não o estado físico real da rede.
+ */
+private void initializeComponentStates() {
+
+    linkStates.clear();
+
+    PhysicalTopology pt = cp.getPT();
+
+    int numNodes = pt.getNumNodes();
+    int totalLinks = 0;
+
+    for (int i = 0; i < numNodes; i++) {
+        for (int j = 0; j < numNodes; j++) {
+
+            Link link = pt.getLink(i, j);
+
+            if (link != null) {
+                linkStates.put(link.getID(), ComponentState.UNKNOWN);
+                totalLinks++;
+            }
+        }
+    }
+
+    System.out.println(
+            "[MONITORING] Component states initialized: "
+            + totalLinks
+            + " links marked as UNKNOWN."
+    );
+}
+    /**
+ * Executa um probe sobre o estado fisico real da rede.
+ *
+ * O algoritmo conhece apenas o resultado final WORKING/FAILED.
+ * A verificacao enlace a enlace contra o postFailureGraph representa
+ * apenas o "oraculo" interno da simulacao.
+ */
+private ProbeResult executeProbe(Probe probe) {
+
+    int[] pathNodes = probe.getPathNodes();
+
+    if (pathNodes == null || pathNodes.length < 2) {
+        probe.setResult(ProbeResult.FAILED);
+        return ProbeResult.FAILED;
+    }
+
+    for (int i = 0; i < pathNodes.length - 1; i++) {
+
+        int src = pathNodes[i];
+        int dst = pathNodes[i + 1];
+
+        if (!postFailureGraph.isEdge(src, dst)) {
+            probe.setResult(ProbeResult.FAILED);
+            return ProbeResult.FAILED;
+        }
+    }
+
+    probe.setResult(ProbeResult.WORKING);
+    return ProbeResult.WORKING;
+}
+
+/**
+ * Converte o resultado de um probe em uma observacao.
+ *
+ * WORKING:
+ * todos os enlaces do caminho sao confirmados como operacionais.
+ *
+ * FAILED:
+ * os enlaces ainda desconhecidos do caminho sao registrados como
+ * pertencentes a um failed probe path, sem marca-los individualmente
+ * como KNOWN_FAILED.
+ */
+private Observation createObservation(Probe probe) {
+
+    ProbeResult result = probe.getResult();
+    int[] pathLinks = probe.getPathLinks();
+
+    if (result == ProbeResult.WORKING) {
+
+        int[] confirmed = pathLinks.clone();
+
+        for (int linkId : confirmed) {
+            linkStates.put(linkId, ComponentState.KNOWN_WORKING);
+        }
+
+        return new Observation(
+                probe,
+                result,
+                confirmed,
+                new int[0],
+                probe.getIteration()
+        );
+    }
+
+    ArrayList<Integer> unknownLinks = new ArrayList<>();
+
+    for (int linkId : pathLinks) {
+
+        ComponentState state = linkStates.get(linkId);
+
+        if (state == ComponentState.UNKNOWN) {
+            unknownLinks.add(linkId);
+        }
+    }
+
+    int[] failedPathLinks = new int[unknownLinks.size()];
+
+    for (int i = 0; i < unknownLinks.size(); i++) {
+        failedPathLinks[i] = unknownLinks.get(i);
+    }
+
+    return new Observation(
+            probe,
+            result,
+            new int[0],
+            failedPathLinks,
+            probe.getIteration()
+    );
+}
+    
+
+/**
+ * Executa um probe de teste usando o primeiro fluxo interrompido.
+ *
+ * Metodo temporario para validacao da infraestrutura de monitoramento.
+ */
+private void runInitialMonitoringTest(List<Flow> interrupted) {
+
+    if (interrupted == null || interrupted.isEmpty()) {
+        System.out.println("[MONITORING] Nenhum fluxo interrompido para teste de probe.");
+        return;
+    }
+
+    Flow f = interrupted.get(0);
+
+    ArrayList<Integer>[] paths = YenKSP.kShortestPaths(
+            fullGraph,
+            f.getSource(),
+            f.getDestination(),
+            1
+    );
+
+    if (paths == null
+            || paths.length == 0
+            || paths[0] == null
+            || paths[0].isEmpty()) {
+
+        System.out.println("[MONITORING] Nenhum caminho encontrado para probe de teste.");
+        return;
+    }
+
+    int[] nodes = convertIntegers(paths[0]);
+    int[] links = new int[nodes.length - 1];
+
+    for (int i = 0; i < nodes.length - 1; i++) {
+        links[i] = cp.getPT()
+                .getLink(nodes[i], nodes[i + 1])
+                .getID();
+    }
+
+    Probe probe = new Probe(
+            f.getSource(),
+            f.getDestination(),
+            nodes,
+            links,
+            0
+    );
+
+    probes.add(probe);
+
+    ProbeResult result = executeProbe(probe);
+
+    Observation observation = createObservation(probe);
+    observations.add(observation);
+
+    System.out.println(
+            "[MONITORING] Probe "
+            + probe.getSourceMonitor()
+            + " -> "
+            + probe.getDestinationMonitor()
+            + " result="
+            + result
+            + " links="
+            + links.length
+    );
+
+    System.out.println(
+            "[MONITORING] Confirmed working links="
+            + observation.getWorkingLinksConfirmed().length
+            + " | Failed path links="
+            + observation.getFailedPathLinks().length
+    );
+}
+    
+
+
+
+/**
+ * Executa um probe de teste em um enlace confirmado como operacional
+ * no postFailureGraph.
+ *
+ * Metodo temporario usado apenas para validar o comportamento WORKING.
+ */
+private void runWorkingProbeTest() {
+
+    PhysicalTopology pt = cp.getPT();
+    int numNodes = pt.getNumNodes();
+
+    for (int i = 0; i < numNodes; i++) {
+        for (int j = 0; j < numNodes; j++) {
+
+            if (postFailureGraph.isEdge(i, j)) {
+
+                Link link = pt.getLink(i, j);
+
+                if (link == null) {
+                    continue;
+                }
+
+                int[] nodes = new int[] {i, j};
+                int[] links = new int[] {link.getID()};
+
+                Probe probe = new Probe(
+                        i,
+                        j,
+                        nodes,
+                        links,
+                        0
+                );
+
+                probes.add(probe);
+
+                ProbeResult result = executeProbe(probe);
+
+                Observation observation = createObservation(probe);
+                observations.add(observation);
+
+                ComponentState state = linkStates.get(link.getID());
+
+                System.out.println(
+                        "[MONITORING-TEST] Working probe "
+                        + i + " -> " + j
+                        + " | link=" + link.getID()
+                        + " | result=" + result
+                        + " | state=" + state
+                );
+
+                return;
+            }
+        }
+    }
+
+    System.out.println(
+            "[MONITORING-TEST] Nenhum enlace operacional encontrado para teste."
+    );
+}
+
 
     /* ============================================================
      * ETAPA 01 - ROTEAMENTO NORMAL DE FLUXOS
@@ -86,29 +375,39 @@ public class PRoTOn_ONS implements RA {
     @Override
     public void disasterArrival(DisasterArea area) {
 
-        System.out.println("[ETAPA 02] Desastre detectado. Preparando recuperacao progressiva.");
+    System.out.println("[ETAPA 02] Desastre detectado. Preparando recuperacao progressiva.");
 
-        // Constrói o grafo pós-falha removendo enlaces interrompidos.
-        this.postFailureGraph = buildPostFailureGraph(cp.getPT()); 
+    // Constrói o grafo pós-falha removendo enlaces interrompidos.
+    this.postFailureGraph = buildPostFailureGraph(cp.getPT());
 
-        // Inicializa o grafo conhecido com o estado pós-falha inicial.
-        // Depois, ele será atualizado progressivamente conforme caminhos forem restaurados.
-        this.knownGraph = buildInitialKnownGraph(cp.getPT());
+    // Inicializa o estado conhecido dos enlaces para o mecanismo de monitoramento.
+    // Neste momento, todos os enlaces começam como UNKNOWN.
+    initializeComponentStates();
 
-        // Obtém os fluxos interrompidos pelo desastre.
-        List<Flow> interrupted = new ArrayList<>(cp.getInteruptedFlows());
-        System.out.println("[ETAPA 02] Fluxos interrompidos: " + interrupted.size());
-        
-        
+    // Inicializa o grafo conhecido com o estado pós-falha inicial.
+    // Depois, ele será atualizado progressivamente conforme caminhos forem restaurados.
+    this.knownGraph = buildInitialKnownGraph(cp.getPT());
 
-        // Separa fluxos críticos e não críticos.
-        // Nesta versão inicial, todos os fluxos interrompidos são tratados como críticos.
-        List<Flow> criticalFlows = selectCriticalFlows(interrupted);
-        List<Flow> nonCriticalFlows = selectNonCriticalFlows(interrupted);
+    // Obtém os fluxos interrompidos pelo desastre.
+    List<Flow> interrupted = new ArrayList<>(cp.getInteruptedFlows());
+    System.out.println("[ETAPA 02] Fluxos interrompidos: " + interrupted.size());
+    
+    //// Executa o teste inicial do mecanismo de monitoramento.
+    runInitialMonitoringTest(interrupted);
+    runWorkingProbeTest();
 
-        // Aplica a recuperação progressiva.
-        progressiveRecovery(this.postFailureGraph, criticalFlows, nonCriticalFlows);
-    }
+    // Separa fluxos críticos e não críticos.
+    // Nesta versão inicial, todos os fluxos interrompidos são tratados como críticos.
+    List<Flow> criticalFlows = selectCriticalFlows(interrupted);
+    List<Flow> nonCriticalFlows = selectNonCriticalFlows(interrupted);
+
+    // Aplica a recuperação progressiva.
+    progressiveRecovery(this.postFailureGraph, criticalFlows, nonCriticalFlows);
+    
+    
+    
+    
+}
 
     @Override
     public void disasterDeparture() {
